@@ -1,0 +1,233 @@
+---
+title: "Assignment 1"
+author: "Bowie Lam Pui King 3035870595"
+date: "2021/12/19"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+hello<- getwd()
+setwd(hello)
+install.packages("pacman")
+library(pacman)
+p_load("lubridate")
+p_load("ggplot2", "tidyverse", "knitr", "viridis", "hrbrthemes", "colorblindr", "gganimate", "ggrepel", "scales", "beepr", "tidytext", "babynames", "ggtext", "glue", "waterfalls", "extrafont", "sysfonts", "devtools", "colorspace", "ggthemes", "gsheet", "lubridate", "ggupset", "readstata13", "UpSetR", "treemapify", "magrittr", "ggiraph", "patchwork", "showtext", "here", "HH")
+p_load("ggplot2", "tidyverse", "knitr", "viridis", "hrbrthemes", "gganimate", "ggrepel", "scales", "beepr", "tidytext", "ggtext", "glue", "waterfalls", "extrafont", "sysfonts", "devtools", "colorspace", "ggthemes", "gsheet", "lubridate")
+#Column to Row
+library(reshape2)
+library(dplyr)
+
+
+
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Load the dataset
+
+```{r data, include=FALSE}
+arkk <- read.csv("ARKK_Position.csv") 
+```
+
+##Data Cleaning
+
+```{r data cleaning}
+arkk_df <- data.frame(arkk)
+class(names(arkk_df))
+names(arkk_df)[1] <-"Segment"
+list<- names(arkk_df)[3:length(names(arkk_df))]
+names(arkk_df)[3:length(names(arkk_df))]<- sub('.', '', list)
+names(arkk_df)[1:length(names(arkk_df))] <- gsub("\\.", "-", colnames(arkk_df))
+names(arkk_df)[3:length(names(arkk_df))]<-format(as.Date(names(arkk_df)[3:length(names(arkk_df))], format = "%m-%d-%Y"), "%Y-%m-%d")
+arkk_df[arkk_df == ""] <- NA  
+arkk_df<-arkk_df[!(arkk_df$Stock_Name==0),]
+arkk_df[is.na(arkk_df)]<-0
+#convert all character columns to numeric
+arkk_df[3:length(names(arkk_df))] <- lapply(arkk_df[3:length(names(arkk_df))], function(x) as.numeric(gsub("[$,]", "", x)))
+#identify all columns class/type
+lapply(arkk_df, class)
+```
+
+## Data Processing and First Graph
+
+```{r data clean by Industry Segment}
+library("tidyverse")
+#Data with the recent one year
+arkk_2021<-arkk_df %>% dplyr::select(Segment,Stock_Name,starts_with("2020-12-31"),starts_with("2021"))
+
+arkk_2021_1st_graph<- arkk_2021 %>%
+  filter(Segment=="Communication Services") %>%
+  arrange(desc(`2020-12-31`)) %>%
+  slice(1:5)
+
+
+#Row to Column
+arkk_2021_1st_graph<- melt(arkk_2021_1st_graph, id.vars=c("Segment", "Stock_Name"))
+arkk_2021_1st_graph
+arkk_2021_1st_graph<-arkk_2021_1st_graph[!(arkk_2021_1st_graph$Stock_Name==0),]
+lapply(arkk_2021_1st_graph, class)
+names(arkk_2021_1st_graph)[3] <-"Date"
+names(arkk_2021_1st_graph)[4] <-"Position_Holding"
+
+
+## First Graph in Communication Sector
+#Use fct_rev to reverse the order when doing fliping 
+# ggplot(arkk_2021_1st_graph, aes(fct_rev(Date), Position_Holding/1000000, fill=Stock_Name)) +
+#   geom_col() +
+#   facet_wrap(~Stock_Name, scales="free_y")+
+#   coord_flip() +
+#   scale_x_reordered() + 
+#   theme_minimal()+
+#   scale_y_continuous(expand = c(0,0)) +
+#   labs(y = "Position Hold (in Millions)",
+#        x = NULL,
+#        title = "Position Change within Communication Services Sector",
+#        subtitle = "Top 5 Biggest holdings, by month")+  
+#   scale_fill_viridis(discrete = T, option = "viridis")+
+#   geom_text(aes(label=round(Position_Holding/1000000,2)), vjust=0.32, size=3,hjust=-0.3)+
+#   theme(legend.position="none", )
+
+
+
+ggplot(arkk_2021_1st_graph, aes(fct_rev(Date), Position_Holding/1000000, fill=Stock_Name)) +
+  geom_col() +
+  facet_wrap(~Stock_Name, scales="free_y")+
+  coord_flip() +
+  scale_x_reordered() + 
+  theme_bw()+
+  scale_y_continuous(expand = c(0,0)) +
+  labs(y = "Position Hold (in Millions)",
+       x = NULL,
+       title = "Position Change within Communication Services Sector",
+       subtitle = "Top 5 Biggest holdings, by month")+  
+  scale_fill_brewer(palette="Dark2")+
+  geom_text(aes(label=round(Position_Holding/1000000,2)), vjust=0.32, size=3,hjust=-0.3)+
+  theme(legend.position="none", )
+
+ggsave("Position_Change_Communication_Sector.png" , width = 25, height = 11)
+```
+
+{r echo=TRUE, message=FALSE, warning=FALSE}
+
+## Plot 2 (Data Processing and Plot 2) Based on Segment % change
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+arkk_2021<-arkk_df %>% dplyr::select(Segment,Stock_Name,starts_with("2020-12-31"),starts_with("2021"))
+
+arkk_2021_2nd_graph<- melt(arkk_2021, id.vars=c("Segment", "Stock_Name"))
+arkk_2021_2nd_graph
+arkk_2021_2nd_graph<-arkk_2021_2nd_graph[!(arkk_2021_2nd_graph$Stock_Name==0),]
+lapply(arkk_2021_2nd_graph, class)
+names(arkk_2021_2nd_graph)[3] <-"Date"
+names(arkk_2021_2nd_graph)[4] <-"Position_Holding"
+
+arkk_2021_2nd_graph_2<- arkk_2021_2nd_graph %>%
+  group_by(Segment,Date) %>%
+  summarise(total=sum(Position_Holding)) %>%
+  arrange(Segment,Date) %>%
+  mutate(change_percent = round(((total - lag(total, default = total[1]))/ lag(total, default = total[1]))*100,2))
+
+#hello
+#write.csv(arkk_2021_2nd_graph_2,"C:/Users/jcgss/OneDrive/Desktop/Master of Economics/ECON 6082 Data Visualization (R)/Lecture_Notes/python_arkk_dash.csv", row.names = FALSE)
+
+
+library(dplyr)
+install.packages("waterfalls")
+library(waterfalls)
+library(dplyr)
+library(ggplot2)
+library(patchwork)
+
+selection<- function(seg){
+  arkk_2021_2nd_graph_2 %>%
+  filter(Segment==seg) %>%
+  dplyr::select(Date,change_percent)
+}[,c(2,3)]
+
+picture<- function(lll,hhh)
+  waterfall(lll,aes(fct_rev(Date),change_percent), linetype = 1) +
+  scale_y_continuous(label=scales::number) +
+  labs(title = hhh, 
+       subtitle = "Dec 2020 till Dec 2021",
+       y="Change (In Percentage)", 
+       x="Each Month") +
+  scale_x_reordered()+
+  theme_gray()
+
+picture(selection("Communication Services"),"Communication Services") ->cs
+picture(selection("Consumer Discretionary"),"Consumer Discretionary") ->cd
+picture(selection("Financials"),"Financials") ->finc
+picture(selection("Health Care"),"Health Care") ->heal
+picture(selection("Information Technology"),"Information Technology") ->it
+picture(selection("Real Estate"),"Real Estate") ->re
+
+(cs | cd)/ (heal | it)/ (finc | re)
+ggsave("Segment_Change.png" , width = 25, height = 12)
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
+## Plot 3 (Data Cleaning and Plot) Heavy Position Change since Dec 31 2020
+
+```{r data clean by Industry Segment}
+arkk_2021_2nd_graph %>%
+  group_by(Segment,Date) %>%
+  summarise(total_post= sum(Position_Holding)) %>%
+  mutate(Change_percent = round(((total_post - lag(total_post, default = total_post[1]))/ lag(total_post, default = total_post[1]))*100,2)) ->df
+#df$Date<- lubridate::ymd(df$Date)
+#df$Date<- factor(format(df$Date,"%b-%y"), ordered=FALSE)
+#levels(df$Date)
+
+lapply(df, class)
+c<- unique(df$Segment)
+
+library(ggplot2)
+
+facet_plot <- ggplot(df, aes(x = Date, y = Change_percent, fill = Segment)) +
+  geom_bar(stat = "identity", position = "dodge") +
+  labs(x = "\n Date", y = "% Change \n", fill = "Different Segment \n",
+       title = "Trend on Different Segment Allocation in ARKK ETF, 2021 \n") +
+   # scale_x_date(date_breaks="1 month",
+   #             labels = scales::date_format("%b %y"),
+   #             expand = c(0.1,0.2)) +
+  scale_fill_discrete(labels=c(c)) +
+  # scale_y_continuous(limits = c(-100, 160), 
+  #                    breaks = seq(-100, 160, 40),
+  #                    labels = scales::number) +
+  #facet_grid(. ~ Segment,scales='free',space='free')+
+  facet_wrap(. ~ Segment,scales = 'free',nrow = 4)+
+  theme(plot.title = element_text(hjust = 0.5), 
+        axis.title.x = element_text(face="bold", colour="blue", size = 12),
+        axis.title.y = element_text(face="bold", colour="blue", size = 12),
+        legend.title = element_text(face="bold", size = 10),  
+        strip.background = element_rect(fill="lightgreen", colour="black", size=1),
+        strip.text = element_text(face="bold", size=rel(1.2)))
+
+# Call facet plot:
+facet_plot
+
+ggsave("Trend_Segment_Allocation.png" , width = 25, height = 12)
+```
+
+{r echo=TRUE, message=FALSE, warning=FALSE}
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+
+
+
+
+
+
+```
